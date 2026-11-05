@@ -15,3 +15,7 @@ on Linux, Windows and Intel macOS. Packaging requires exact-source clean reports
 No production infrastructure or personal site content belongs in this repository.
 Do not commit credentials, local/private handoffs, account IDs or machine paths.
 Use GitHub noreply commit identity. Keep public documentation generic.
+
+Public v0.3.1 is published/latest. See docs/PUBLICATION.md for verified CI, native
+binary checks and privacy audit scope. The release source is 340a307185e679d164638c5fde125821ea3c317b;
+subsequent documentation commits do not retag or replace released bytes.
