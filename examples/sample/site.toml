@@ -1,0 +1,12 @@
+[site]
+title = "My Forge Site"
+base_url = "https://example.com"
+description = "A site built with Forge"
+
+[build]
+output = "dist"
+theme = "default"
+
+[indexes]
+enabled = true
+page_size = 10

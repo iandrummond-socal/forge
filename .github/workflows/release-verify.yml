@@ -1,0 +1,46 @@
+name: Verify release binaries
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release or staging prerelease tag to verify
+        required: true
+        type: string
+      source:
+        description: Exact packaged source commit
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  binaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.tag }}
+      SOURCE_SHA: ${{ inputs.source }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Download release assets
+        run: gh release download "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --dir release/download
+        if: runner.os == 'Windows'
+      - name: Download release assets
+        run: gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --dir release/download
+        if: runner.os != 'Windows'
+      - name: Verify packaged binary and sample
+        shell: bash
+        run: python scripts/verify_release.py --assets release/download --version "$RELEASE_TAG" --source "$SOURCE_SHA" --report release/native-report.json
+      - name: Preserve result in job log
+        if: always()
+        shell: bash
+        run: if [ -f release/native-report.json ]; then cat release/native-report.json; fi

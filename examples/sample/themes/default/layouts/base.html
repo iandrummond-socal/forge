@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if ne .Kind "home"}}{{.Title}} · {{end}}{{.Site.Title}}{{if gt .Pagination.PageNumber 1}} · Page {{.Pagination.PageNumber}}{{end}}</title>
+  <meta name="description" content="{{if .Page.Description}}{{.Page.Description}}{{else}}{{.Site.Description}}{{end}}">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" type="application/rss+xml" href="/rss.xml">
+</head>
+<body>
+  {{template "header" .}}
+  <main>{{template "content" .}}</main>
+  {{template "footer" .}}
+</body>
+</html>

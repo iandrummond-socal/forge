@@ -1,0 +1,6 @@
+{{define "content"}}
+<h1>{{.Site.Title}}</h1>
+<p>{{.Site.Description}}</p>
+<h2>Writing</h2>
+<ul>{{range .Pages}}<li><a href="{{.URL}}">{{.Title}}</a>{{if .Date}} <small>{{.Date}}</small>{{end}}</li>{{end}}</ul>
+{{end}}

@@ -1,0 +1,8 @@
+{{define "content"}}
+<h1>{{.Site.Title}}</h1>
+<p>{{.Site.Description}}</p>
+<h2>Writing</h2>
+<ul>{{range .Pages}}{{if eq .Collection "posts"}}<li><a href="{{.URL}}">{{.Title}}</a>{{if .Date}} <small>{{.Date}}</small>{{end}}</li>{{end}}{{end}}</ul>
+{{if .Site.Indexes}}<nav><a href="/collections/">Collections</a> · <a href="/tags/">Tags</a> · <a href="/categories/">Categories</a> · <a href="/archives/">Archives</a></nav>{{end}}
+<nav>{{with .Pagination.PrevURL}}<a rel="prev" href="{{.}}">Previous</a>{{end}} {{if gt .Pagination.TotalPages 1}}Page {{.Pagination.PageNumber}} of {{.Pagination.TotalPages}}{{end}} {{with .Pagination.NextURL}}<a rel="next" href="{{.}}">Next</a>{{end}}</nav>
+{{end}}

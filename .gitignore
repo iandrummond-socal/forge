@@ -1,0 +1,43 @@
+# Local binaries and original downloaded deliverables
+/forge
+/forge-v*-linux-*
+/*.zip
+/bin/
+# Generated sites, staging directories, and build rollback copies
+dist/
+.forge-build-*/
+*.previous-*/
+# Go test and coverage output
+*.test
+*.prof
+coverage.out
+coverage.html
+# Deployment dependencies and local credentials
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+# Local tools and editor/OS metadata
+.tools/
+.cache/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local release artifacts, validation logs and manifests
+/release/
+
+# Python release tooling caches
+__pycache__/
+*.pyc
+
+# Local handoffs, private operational reports and credentials
+/PRIVATE_HANDOFF.md
+*.bundle
+*.log
