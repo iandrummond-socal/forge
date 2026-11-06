@@ -1,1 +1,1 @@
-{{define "header"}}<header><a href="/">{{.Site.Title}}</a><nav><a href="/about/">About</a></nav></header>{{end}}
+{{define "header"}}<header><a href="/">{{.Site.Title}}</a><nav><a href="/about/">About</a>{{if .Site.BaseURL}}<a class="nav-rss" href="/rss.xml"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="3" cy="13" r="1.6"/><path d="M2 6.5a7.5 7.5 0 0 1 7.5 7.5H7.5A5.5 5.5 0 0 0 2 8.5z"/><path d="M2 2a12 12 0 0 1 12 12h-2A10 10 0 0 0 2 4z"/></svg>RSS</a>{{end}}</nav></header>{{end}}

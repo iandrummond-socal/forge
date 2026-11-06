@@ -178,3 +178,197 @@ func TestCheckRejectsTemplateErrors(t *testing.T) {
 		t.Fatal("check created production output")
 	}
 }
+
+// headerSegment returns the <header>…</header> segment of an HTML page, or
+// "" when the page has none. The header holds the site nav; list layouts add
+// further <nav> elements inside <main>, so the header is the only safe scope.
+func headerSegment(page string) string {
+	start := strings.Index(page, "<header")
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(page[start:], "</header>")
+	if end < 0 {
+		return ""
+	}
+	return page[start : start+end+len("</header>")]
+}
+
+// htmlPages returns every *.html file under dir.
+func htmlPages(t *testing.T, dir string) []string {
+	t.Helper()
+	var pages []string
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(path, ".html") {
+			pages = append(pages, path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pages) == 0 {
+		t.Fatalf("no HTML pages under %s", dir)
+	}
+	return pages
+}
+
+func TestRSSNavLink(t *testing.T) {
+	const asOf = "2026-11-04T00:00:00Z"
+	root := filepath.Join(t.TempDir(), "site")
+	var out bytes.Buffer
+	if err := Run([]string{"init", root}, &out, &out); err != nil {
+		t.Fatal(err)
+	}
+	write := func(path, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, path)), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, path), []byte(body), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfgPath := filepath.Join(root, "site.toml")
+	cfg, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(cfg), "page_size = 10") {
+		t.Fatalf("starter site.toml lacks page_size = 10: %s", cfg)
+	}
+	write("site.toml", strings.Replace(string(cfg), "page_size = 10", "page_size = 1", 1))
+	write("content/posts/second.md", `+++
+title = 'Second'
+date = '2026-11-01'
+slug = 'second'
+tags = ['Go']
+categories = ['news']
++++
+Second body`)
+	write("content/posts/third.md", `+++
+title = 'Third'
+date = '2026-10-15'
+slug = 'third'
+tags = ['Go']
+categories = ['news']
++++
+Third body`)
+	if err := Run([]string{"build", "-root", root, "-as-of", asOf}, &out, &out); err != nil {
+		t.Fatal(err)
+	}
+	dist := filepath.Join(root, "dist")
+	// Guard against a vacuous sweep: the site must have every page kind.
+	for _, rel := range []string{filepath.Join("page", "2", "index.html"), "tags", "categories", "collections", "archives"} {
+		if _, err := os.Stat(filepath.Join(dist, rel)); err != nil {
+			t.Fatalf("expected %s in build output: %v", rel, err)
+		}
+	}
+	for _, path := range htmlPages(t, dist) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		header := headerSegment(string(data))
+		if header == "" {
+			t.Errorf("%s: no <header> segment", path)
+			continue
+		}
+		for _, want := range []string{`class="nav-rss"`, `href="/rss.xml"`, "RSS"} {
+			if !strings.Contains(header, want) {
+				t.Errorf("%s: header lacks %s: %s", path, want, header)
+			}
+		}
+		about, rss := strings.Index(header, "About"), strings.Index(header, "nav-rss")
+		if about < 0 || rss < 0 || about > rss {
+			t.Errorf("%s: About must come before nav-rss in header: %s", path, header)
+		}
+	}
+
+	// Cold-start twin: a fresh site with no base_url has no feed and no link.
+	cold := filepath.Join(t.TempDir(), "cold")
+	if err := Run([]string{"init", cold}, &out, &out); err != nil {
+		t.Fatal(err)
+	}
+	coldCfg := filepath.Join(cold, "site.toml")
+	ccfg, err := os.ReadFile(coldCfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const baseLine = `base_url = "https://example.com"`
+	if !strings.Contains(string(ccfg), baseLine) {
+		t.Fatalf("starter site.toml lacks %s: %s", baseLine, ccfg)
+	}
+	if err := os.WriteFile(coldCfg, []byte(strings.Replace(string(ccfg), baseLine, `base_url = ""`, 1)), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run([]string{"build", "-root", cold, "-as-of", asOf}, &out, &out); err != nil {
+		t.Fatal(err)
+	}
+	coldDist := filepath.Join(cold, "dist")
+	if _, err := os.Stat(filepath.Join(coldDist, "rss.xml")); !os.IsNotExist(err) {
+		t.Fatalf("rss.xml written without base_url: %v", err)
+	}
+	for _, path := range htmlPages(t, coldDist) {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(headerSegment(string(data)), "nav-rss") {
+			t.Errorf("%s: header shows nav-rss without base_url", path)
+		}
+	}
+}
+
+func TestSampleThemeMatchesStarter(t *testing.T) {
+	starter := filepath.Join("starter", "themes")
+	sample := filepath.Join("..", "..", "examples", "sample", "themes")
+	collect := func(dir string) map[string][]byte {
+		t.Helper()
+		files := map[string][]byte{}
+		err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			rel, err := filepath.Rel(dir, path)
+			if err != nil {
+				return err
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			files[rel] = data
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(files) == 0 {
+			t.Fatalf("no theme files under %s", dir)
+		}
+		return files
+	}
+	want, got := collect(starter), collect(sample)
+	for rel, data := range want {
+		other, ok := got[rel]
+		if !ok {
+			t.Errorf("sample theme is missing %s", rel)
+			continue
+		}
+		if !bytes.Equal(data, other) {
+			t.Errorf("sample theme %s differs from the starter", rel)
+		}
+	}
+	for rel := range got {
+		if _, ok := want[rel]; !ok {
+			t.Errorf("sample theme has %s, which the starter lacks", rel)
+		}
+	}
+}

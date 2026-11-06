@@ -125,6 +125,16 @@ def main():
                 assert before == tree_hashes(site / "dist"), f"nondeterministic output: {name}"
                 result = inspect_site(site / "dist")
                 assert result["files"] == (6 if name == "legacy_v0.2" else 17), result
+                # Read only the <header> segment: layouts add other <nav> elements inside <main>.
+                home = (site / "dist/index.html").read_text(encoding="utf-8")
+                start = home.find("<header")
+                end = home.find("</header>", start)
+                assert start != -1 and end != -1, f"no <header> in {name} index.html"
+                header = home[start:end]
+                if name == "legacy_v0.2":
+                    assert "nav-rss" not in header, f"legacy_v0.2 header gained an RSS link: {header}"
+                else:
+                    assert "nav-rss" in header and 'href="/rss.xml"' in header, f"{name} header lacks the RSS link: {header}"
                 report["smoke"][name] = dict(result, deterministic=True)
             # Force multiple pages so the release gate checks real pagination links.
             config = (fresh / "site.toml").read_text().replace("page_size = 10", "page_size = 1")
