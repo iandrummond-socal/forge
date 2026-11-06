@@ -54,6 +54,12 @@ platform validation, public module identity, signing and publication remain sepa
 - Validation reports distinguish native execution from OS compatibility layers
 - Existing rc.1 archives remain unchanged; new source requires a new candidate after qualification
 
+## Implemented in 0.3.2
+
+- Visible RSS link in the default theme's header navigation, shown only when `base_url` is set (the only case in which `rss.xml` is written)
+- Starter and bundled sample themes kept identical by a test
+- Existing sites and custom `templates/partials/header.html` overrides are unchanged until the owner copies the new partial
+
 ## Important limitations
 
 - This is a prototype, not yet a Hugo replacement. CommonMark is parsed with deliberate safe-output restrictions; GFM extensions such as tables are not enabled.

@@ -54,7 +54,7 @@ def entries_from(root):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--version", default="v0.3.1")
+    parser.add_argument("--version", default="v0.3.2")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--validation", type=Path, nargs="+", required=True)
     args = parser.parse_args()

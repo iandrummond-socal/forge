@@ -2,7 +2,7 @@
 
 Forge is a reusable, Markdown-first **Go static site generator**. It outputs plain HTML, CSS, XML, and other static assets; its output can be hosted anywhere. Cloudflare Workers Static Assets is the first deployment target.
 
-> **MIT licensed.** First public release: v0.3.1. Forge preserves the v0.2 compatibility contract and v0.3 feature set. See [current limitations](docs/roadmap.md).
+> **MIT licensed.** First public release: v0.3.1. v0.3.2 adds a visible RSS link to the default theme's header ([notes](docs/RELEASE_NOTES_v0.3.2.md)). Forge preserves the v0.2 compatibility contract and v0.3 feature set. See [current limitations](docs/roadmap.md).
 
 ## Requirements
 
@@ -221,6 +221,8 @@ Theme files live at `themes/<name>/layouts/base.html`, `layouts/index.html`, `la
 
 A site can override theme layouts in `templates/layouts/` and partials in `templates/partials/`, preserving the filename. Theme `static/` files are copied first, then site `static/` files override matching files. Use `{{.Site}}`, `{{.Page}}`, `{{.Pages}}`, and `{{.Body}}` as template data. Note that site root `templates/` overrides are optional and do not need to exist.
 
+The default theme's header shows an RSS link to `/rss.xml` only when `base_url` is set in `site.toml`, because `rss.xml` is written only then.
+
 ## Cloudflare Workers Static Assets
 
 Build any site with Forge and deploy its generated output with Wrangler. Node/npm
@@ -242,7 +244,8 @@ personal site content and account configuration in your own site repository.
 
 ## Releases and validation
 
-See [release procedure](docs/RELEASE.md) and [v0.3.1 notes](docs/RELEASE_NOTES_v0.3.1.md).
+See [release procedure](docs/RELEASE.md), [v0.3.2 notes](docs/RELEASE_NOTES_v0.3.2.md)
+and [v0.3.1 notes](docs/RELEASE_NOTES_v0.3.1.md).
 Prebuilt archives include MIT and dependency licenses, exact version/source
 provenance and SHA-256 checksums. Source archives include vendored dependencies
 for offline builds. Six-target compilation does not imply native execution on
