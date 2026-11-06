@@ -28,3 +28,28 @@ Verified November 5, 2026:
 [Stable release](https://github.com/iandrummond-socal/forge/releases/tag/v0.3.1)
 includes SHA256SUMS, exact source metadata, six binaries, source/sample archives
 and license notices. Release tags/assets are immutable once published.
+
+## v0.3.2
+
+Source commit `88bc3fdeb3bc0fe1e5a355fe4a41ed1807cbe696`, tagged **v0.3.2**.
+The change is the default theme's RSS nav link; the generator core is unchanged.
+
+Verified November 5, 2026:
+
+- [Source CI](https://github.com/iandrummond-socal/forge/actions/runs/42135984803)
+  passed all six jobs on the release commit: Linux AMD64, Windows AMD64 and Intel
+  macOS with Go 1.23.0 and Go 1.27.3.
+- Local native macOS ARM64 validation passed on a clean tree with both Go versions
+  (45 top-level race tests, vet, module verification, legacy compatibility,
+  output/link/XML and rebuild checks). Six binary targets compiled.
+- [Native packaged-binary checks](https://github.com/iandrummond-socal/forge/actions/runs/42145464677)
+  passed on Linux AMD64, Windows AMD64 and Intel macOS. Windows ARM64 remains
+  compile-only.
+- The 12 published assets were downloaded again and match `SHA256SUMS`.
+- The packaged source and sample archives were scanned with Gitleaks (zero
+  findings) and the archives and binaries were searched for machine paths and
+  personal identifiers (none). Git history and Actions logs were not rescanned
+  for this release.
+
+[Stable release](https://github.com/iandrummond-socal/forge/releases/tag/v0.3.2)
+has the same asset set as v0.3.1.
