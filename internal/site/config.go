@@ -17,6 +17,12 @@ type Config struct {
 	Indexes     bool
 	PageSize    int
 	Theme       string
+	// [home] narrows the home list; [feed] shapes rss.xml. Zero values keep v0.3 output.
+	HomeCollection    string
+	HomeLimit         int
+	FeedFullContent   bool
+	FeedExternalLinks bool
+	FeedLimit         int
 }
 
 func LoadConfig(root string) (Config, error) {
@@ -39,13 +45,24 @@ func LoadConfig(root string) (Config, error) {
 			Enabled  bool `toml:"enabled"`
 			PageSize int  `toml:"page_size"`
 		} `toml:"indexes"`
+		Home struct {
+			Collection string `toml:"collection"`
+			Limit      int    `toml:"limit"`
+		} `toml:"home"`
+		Feed struct {
+			FullContent   bool `toml:"full_content"`
+			ExternalLinks bool `toml:"external_links"`
+			Limit         int  `toml:"limit"`
+		} `toml:"feed"`
 	}
 	document.Build.Output = "dist"
 	if err := decodeTOML("site.toml", string(data), &document); err != nil {
 		return c, err
 	}
 	c = Config{Title: document.Site.Title, BaseURL: document.Site.BaseURL,
-		Description: document.Site.Description, OutputDir: document.Build.Output, Theme: document.Build.Theme, Indexes: document.Indexes.Enabled, PageSize: document.Indexes.PageSize}
+		Description: document.Site.Description, OutputDir: document.Build.Output, Theme: document.Build.Theme, Indexes: document.Indexes.Enabled, PageSize: document.Indexes.PageSize,
+		HomeCollection: document.Home.Collection, HomeLimit: document.Home.Limit,
+		FeedFullContent: document.Feed.FullContent, FeedExternalLinks: document.Feed.ExternalLinks, FeedLimit: document.Feed.Limit}
 	if c.Theme != "" && (strings.HasPrefix(c.Theme, ".") || strings.ContainsAny(c.Theme, `/\`)) {
 		return c, fmt.Errorf("invalid theme name %q", c.Theme)
 	}
@@ -54,6 +71,15 @@ func LoadConfig(root string) (Config, error) {
 	}
 	if !c.Indexes && c.PageSize != 0 {
 		return c, fmt.Errorf("indexes.page_size requires indexes.enabled = true")
+	}
+	if c.HomeCollection != "" && !slugRx.MatchString(c.HomeCollection) {
+		return c, fmt.Errorf("home.collection must be a lowercase slug")
+	}
+	if c.HomeLimit < 0 {
+		return c, fmt.Errorf("home.limit must be nonnegative")
+	}
+	if c.FeedLimit < 0 {
+		return c, fmt.Errorf("feed.limit must be nonnegative")
 	}
 	if c.Title == "" {
 		return c, fmt.Errorf("site.title is required")

@@ -45,13 +45,31 @@ func termSlug(label string) string {
 // Indexes builds deterministic indexes from already-selected content only.
 // The homepage always exists; all other generation is opt-in.
 func Indexes(cfg Config, pages []Page) ([]Index, error) {
-	indexes := []Index{{Kind: "home", Title: cfg.Title, URL: "/", Pages: pages}}
+	// [home] narrows only the home list; every other index still sees all pages.
+	homePages := pages
+	if cfg.HomeCollection != "" {
+		homePages = nil
+		for _, p := range pages {
+			if p.Collection == cfg.HomeCollection {
+				homePages = append(homePages, p)
+			}
+		}
+	}
+	if cfg.HomeLimit > 0 && len(homePages) > cfg.HomeLimit {
+		homePages = homePages[:cfg.HomeLimit:cfg.HomeLimit]
+	}
+	homeSize := cfg.PageSize
+	if cfg.HomeLimit > 0 || !cfg.Indexes {
+		homeSize = 0
+	}
+	home := paginate([]Index{{Kind: "home", Title: cfg.Title, URL: "/", Pages: homePages}}, homeSize)
 	if !cfg.Indexes {
-		return paginate(indexes, 0), nil
+		return home, nil
 	}
 	if cfg.PageSize < 0 {
 		return nil, fmt.Errorf("indexes.page_size must be nonnegative")
 	}
+	var indexes []Index
 	for _, kind := range []string{"collections", "tags", "categories"} {
 		members := map[string][]Page{}
 		labels := map[string]string{}
@@ -126,7 +144,7 @@ func Indexes(cfg Config, pages []Page) ([]Index, error) {
 		indexes = append(indexes, year)
 	}
 	indexes = append(indexes, archive)
-	result := paginate(indexes, cfg.PageSize)
+	result := append(home, paginate(indexes, cfg.PageSize)...)
 	sort.Slice(result, func(i, j int) bool { return result[i].URL < result[j].URL })
 	return result, nil
 }

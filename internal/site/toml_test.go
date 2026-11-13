@@ -69,7 +69,7 @@ func TestTOMLFrontMatterRejectsInvalidInput(t *testing.T) {
 	for _, head := range []string{
 		"title = 'A'\ntitle = 'B'", "title = 42", "title = 'A'\ndraft = 'false'",
 		"title = 'A'\nunknown_tags = ['go']", "title = 'A'\n[unknown]", "title = 'A'\ndate = 42",
-		"title = 'A'\ndate = 2026-11-04T12:00:00Z", "title = 'A'\ndate = '2026-99-99'",
+		"title = 'A'\ndate = 2026-11-04T12:00:00", "title = 'A'\ndate = '2026-11-04T12:00:00'", "title = 'A'\ndate = '2026-99-99'",
 		"title = 'A'\nslug = '../escape'", "title = 'unterminated",
 	} {
 		t.Run(head, func(t *testing.T) {
