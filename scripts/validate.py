@@ -142,6 +142,35 @@ def main():
             run([binary, "build", "-root", fresh, "-as-of", AS_OF])
             assert (fresh / "dist/page/2/index.html").is_file()
             report["smoke"]["paginated"] = inspect_site(fresh / "dist")
+            # Link-blog mode on a second fresh site: a capped, unpaginated home and a full-content feed.
+            linkblog = temp / "linkblog"
+            run([binary, "init", linkblog])
+            config = (linkblog / "site.toml").read_text(encoding="utf-8").replace("page_size = 10", "page_size = 1")
+            config += ('\n[home]\ncollection = "posts"\nlimit = 1\n'
+                       '\n[feed]\nfull_content = true\nexternal_links = true\n')
+            external = "https://example.org/an-article"
+            posts = {
+                "linked.md": ("+++\ntitle = 'Linked'\ndate = 2026-11-02\nslug = 'linked'\n"
+                              f"link = '{external}'\n+++\nA link post with **body** text.\n"),
+                "timed.md": ("+++\ntitle = 'Timed'\ndate = 2026-11-03T15:00:00-08:00\nslug = 'timed'\n"
+                             "+++\nA timestamped post with **body** text.\n"),
+            }
+            with open(linkblog / "site.toml", "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(config)
+            for filename, body in posts.items():
+                with open(linkblog / "content/posts" / filename, "w", encoding="utf-8", newline="\n") as handle:
+                    handle.write(body)
+            run([binary, "build", "-root", linkblog, "-as-of", AS_OF])
+            before = tree_hashes(linkblog / "dist")
+            run([binary, "build", "-root", linkblog, "-as-of", AS_OF])
+            assert before == tree_hashes(linkblog / "dist"), "nondeterministic output: linkblog"
+            assert not (linkblog / "dist/page/2/index.html").exists(), "linkblog home was paginated despite [home] limit"
+            feed = ET.parse(linkblog / "dist/rss.xml")
+            assert next(feed.iter("guid"), None) is not None, "linkblog rss.xml has no guid"
+            assert next(feed.iter("{http://purl.org/rss/1.0/modules/content/}encoded"), None) is not None, \
+                "linkblog rss.xml has no content:encoded"
+            assert external in [link.text for link in feed.iter("link")], "linkblog feed lacks the external link"
+            report["smoke"]["linkblog"] = dict(inspect_site(linkblog / "dist"), deterministic=True)
         report["status"] = "passed"
         print(f"PASS: {report['top_level_tests_passed']} tests, vet, module verification, compatibility, local links and deterministic builds", flush=True)
     except Exception as error:

@@ -2,7 +2,7 @@
 
 Forge is a reusable, Markdown-first **Go static site generator**. It outputs plain HTML, CSS, XML, and other static assets; its output can be hosted anywhere. Cloudflare Workers Static Assets is the first deployment target.
 
-> **MIT licensed.** First public release: v0.3.1. v0.3.2 adds a visible RSS link to the default theme's header ([notes](docs/RELEASE_NOTES_v0.3.2.md)). Forge preserves the v0.2 compatibility contract and v0.3 feature set. See [current limitations](docs/roadmap.md).
+> **MIT licensed.** First public release: v0.3.1. v0.3.2 adds a visible RSS link to the default theme's header ([notes](docs/RELEASE_NOTES_v0.3.2.md)). v0.4.0 adds opt-in link-blog support: link posts, timestamped dates, full post bodies in lists, a capped home page and full-content feeds ([notes](docs/RELEASE_NOTES_v0.4.0.md)). Forge preserves the v0.2 compatibility contract and v0.3 feature set. See [current limitations](docs/roadmap.md).
 
 ## Requirements
 
@@ -73,12 +73,13 @@ draft = false
 Write some **Markdown** here.
 ```
 
-Existing fields (`title`, `description`, `date`, `slug`, `draft`) retain their behavior. The editorial `date` is still YYYY-MM-DD (quoted or a TOML local date) and controls ordering and RSS dates, **not publication eligibility**. Even future editorial dates stay visible, preserving v0.2 compatibility.
+Existing fields (`title`, `description`, `date`, `slug`, `draft`) retain their behavior. The editorial `date` is YYYY-MM-DD (quoted or a TOML local date) or, since v0.4.0, a timestamp with an explicit timezone offset (see [Timestamped dates](#timestamped-dates)). It controls ordering and RSS dates, **not publication eligibility**. Even future editorial dates stay visible, preserving v0.2 compatibility.
 
 Additional front matter:
 
 | Field | Type and meaning |
 | --- | --- |
+| `link` | Optional external URL for a link post, exposed as `.Page.Link` (and `.Link` on each item of `.Pages`); must be an absolute `http` or `https` URL with a host, no credentials and no whitespace or control characters; never changes the content URL |
 | `collection` | Optional lowercase slug exposed as `.Page.Collection`; defaults to `posts` for post URLs and `pages` otherwise; never changes the content URL |
 | `author` | Optional string, exposed as `.Page.Author` |
 | `tags`, `categories` | String arrays exposed as `.Page.Tags` / `.Page.Categories`; surrounding whitespace trimmed, exact duplicates removed in order, empty labels rejected |
@@ -109,6 +110,29 @@ Publication bounds accept TOML local dates, quoted YYYY-MM-DD dates, or quoted/u
 A page is visible only when it is not a draft, publication has begun and expiry has not occurred. `-drafts`, `-future` and `-expired` independently override their respective condition; a future draft requires both `-drafts -future`. All commands use the same selection for page files, homepage listings, RSS and sitemap. Every source file is parsed/validated even if currently hidden; URL collisions are checked among selected pages, as before.
 
 Optional params in strict templates should use `index`, for example `{{with index .Page.Params "featured"}}Featured{{end}}`; direct `.Page.Params.featured` access errors on pages without that key. Values retain normal `html/template` escaping.
+
+### Timestamped dates
+
+The editorial `date` accepts four forms:
+
+```toml
+date = "2026-11-03"                  # quoted date, as before
+date = 2026-11-03                    # TOML local date, as before
+date = 2026-11-03T15:00:00-08:00     # TOML offset datetime (new)
+date = "2026-11-03T15:00:00-08:00"   # quoted RFC 3339 timestamp (new)
+```
+
+A timestamp must carry an explicit offset (`Z` or `±hh:mm`).
+A local datetime without an offset, quoted or unquoted, is an error, as it is for `publish_date`; so is the zero timestamp.
+`.Date` stays a `YYYY-MM-DD` string, taken in the timestamp's own offset: `2026-11-12T23:30:00-08:00` gives `2026-11-12`, the author's calendar day, not the UTC day.
+Archives group by that `.Date`, and templates that print `.Date` are unchanged.
+
+Content is ordered by instant, newest first, then by URL when two instants are equal; undated content still sorts last.
+A date-only `date` counts as midnight UTC of that day, so date-only sites keep exactly their previous order, and several timestamped posts on one day sort by time.
+
+Mixing the two styles can list items out of visible-date order.
+For example, `2026-11-12T20:00:00-08:00` (04:00 UTC on 13 November) sorts above a date-only `2026-11-13` (midnight UTC), although its `.Date` reads `2026-11-12`.
+A site that uses timestamps should use them on every post.
 
 Goldmark provides CommonMark parsing, including nested lists/emphasis, blockquotes, images, reference links, setext headings and fenced/indented code. Forge intentionally escapes raw HTML and blocks unsafe destinations rather than emitting unrestricted CommonMark HTML. Relative URLs and HTTP(S) links/images are supported; network-path URLs (`//host`), backslashes and dangerous schemes are blocked. Goldmark's safe autolinks are retained. GFM tables, task lists and strikethrough are not enabled.
 
@@ -142,7 +166,7 @@ The current starter and sample explicitly enable this configuration. `page_size`
 
 | Route | Content |
 | --- | --- |
-| `/` | Selected content, newest editorial date first, URL tie-breaker |
+| `/` | Selected content, newest editorial date first, URL tie-breaker; narrowed by [`[home]`](#home-page-and-feed) when set |
 | `/collections/` | Links to nonempty collections with counts |
 | `/collections/<collection>/` | Members of one collection |
 | `/tags/`, `/categories/` | Term directories with counts |
@@ -176,6 +200,8 @@ Template data adds:
 | `.AllPages` | Full selected content set, regardless of pagination |
 | `.Groups` | Directory links with `.Title`, `.URL`, `.Count` |
 | `.Pagination` | `.PageNumber`, `.TotalPages`, `.TotalItems`, `.PrevURL`, `.NextURL` |
+| `.Link` | On each item of `.Pages` or `.AllPages`: the item's front matter `link`, or empty (`.Page.Link` on content pages) |
+| `.Content` | On each item of `.Pages` or `.AllPages`: the item's rendered, already-sanitised body, inserted without escaping (`{{.Content}}` inside `{{range .Pages}}`) |
 
 Metadata continues to be escaped normally. `.Page` and `.Body` describe content pages, not synthetic lists. Existing themes do not need new files when indexes are disabled. When enabling pagination in a custom homepage template, add navigation like the starter:
 
@@ -184,6 +210,136 @@ Metadata continues to be escaped normally. `.Page` and `.Body` describe content 
 {{if gt .Pagination.TotalPages 1}}Page {{.Pagination.PageNumber}} of {{.Pagination.TotalPages}}{{end}}
 {{with .Pagination.NextURL}}<a rel="next" href="{{.}}">Next</a>{{end}}
 ```
+
+## Home page and feed
+
+Two optional `site.toml` tables, added in v0.4.0, shape the homepage and `rss.xml`.
+Both are opt-in: a site without them builds exactly the same output as before.
+Unknown keys inside either table are errors.
+
+```toml
+[home]
+collection = "posts"   # optional lowercase slug; empty or omitted means all selected content
+limit = 10             # optional nonnegative integer; 0 or omitted means no limit
+
+[feed]
+full_content = false   # put each post's rendered body in the feed
+external_links = false # point a link post's feed item at its external page
+limit = 0              # optional nonnegative integer; 0 or omitted means every post
+```
+
+### `[home]`
+
+`collection` restricts the homepage to members of one collection, for example `posts` to leave out standalone pages such as About.
+A collection with no selected members gives an empty homepage, not an error.
+`limit` keeps only the newest `limit` items, after the collection filter.
+
+When `limit` is greater than zero the homepage is **never paginated**, whatever `indexes.page_size` says: there is no `/page/2/`, and `.Pagination.TotalPages` is 1.
+Every other index is unaffected: collections, taxonomies and archives still list all selected content and still paginate at `indexes.page_size`, so a post that rolls off the homepage stays in `/archives/` and at its permalink.
+Drafts, future and expired content are filtered before the limit is applied, so a hidden post never takes a homepage slot.
+
+`[home]` works with indexes enabled or disabled.
+With `indexes.enabled = false` there are no archives or other lists, so a post that rolls off the homepage is reachable only by its permalink.
+
+### `[feed]`
+
+The feed is written only when `site.base_url` is set, so `[feed]` does nothing without it.
+The feed still holds only content with `/posts/` URLs, newest first, and `limit`, when positive, keeps the newest `limit` of those items.
+
+With both booleans false an item is unchanged from earlier releases, even for a post with `link`:
+
+```xml
+<item>
+  <title>Post title</title>
+  <link>https://example.com/posts/post-slug/</link>
+  <description>Front matter description</description>
+  <pubDate>Tue, 03 Nov 2026 00:00:00 +0000</pubDate>
+</item>
+```
+
+A post with a timestamped `date` gets a `pubDate` in its own offset (`Tue, 03 Nov 2026 15:00:00 -0800`); a date-only `date` keeps midnight UTC as before.
+
+`full_content = true` declares `xmlns:content="http://purl.org/rss/1.0/modules/content/"` on `<rss>` and appends two elements after `pubDate` on every item: a permalink `guid` and the rendered body in `content:encoded`.
+
+```xml
+<item>
+  <title>Post title</title>
+  <link>https://example.com/posts/post-slug/</link>
+  <description>Front matter description</description>
+  <pubDate>Tue, 03 Nov 2026 09:00:00 -0800</pubDate>
+  <guid isPermaLink="true">https://example.com/posts/post-slug/</guid>
+  <content:encoded><![CDATA[<p>The rendered body.</p>
+]]></content:encoded>
+</item>
+```
+
+`external_links = true` changes only posts that have `link`: the item's `<link>` becomes the external URL and the item gains a permalink `guid`.
+Without `full_content` that is all; there is no `content:encoded` and no namespace declaration.
+With both keys on, a link post's body ends with a permalink footer whose `title` attribute carries the HTML-escaped post title:
+
+```xml
+<item>
+  <title>Worth reading</title>
+  <link>https://example.org/an-article</link>
+  <description></description>
+  <pubDate>Tue, 03 Nov 2026 15:00:00 -0800</pubDate>
+  <guid isPermaLink="true">https://example.com/posts/worth-reading/</guid>
+  <content:encoded><![CDATA[<p>Why the article is worth your time.</p>
+<p><a href="https://example.com/posts/worth-reading/" title="Permanent link to ‘Worth reading’">★</a></p>]]></content:encoded>
+</item>
+```
+
+Feed readers do not resolve links against the site, so inside `content:encoded` only, root-relative `href="/…"` and `src="/…"` attributes are rewritten to `base_url` plus the path (`/posts/x/` becomes `https://example.com/posts/x/`).
+Absolute URLs are left alone.
+Document-relative URLs such as `href="other-post/"` or `src="img.png"` are left as written and may not resolve in a feed reader; use root-relative or absolute URLs in posts that go into a full-content feed.
+Pages on the site itself are unchanged by this rewrite.
+
+### Running a link blog
+
+A link blog shows full posts on the homepage, caps it at the newest few, and marks posts that point elsewhere.
+Starting from `forge init`, add to `site.toml`:
+
+```toml
+[home]
+collection = "posts"
+limit = 10
+
+[feed]
+full_content = true
+external_links = true
+limit = 20
+```
+
+Write a link post with `link` and a timestamp:
+
+```md
++++
+title = "Worth reading"
+date = 2026-11-03T15:00:00-08:00
+link = "https://example.org/an-article"
++++
+Why the article is worth your time, with a link to [an earlier post](/posts/hello-world/).
+```
+
+The default theme stays a title list and already shows a ↗ marker after the title of a post with `link`, on lists and inside the post's own `<h1>`.
+To show full bodies on the homepage, override its layout with `templates/layouts/index.html`.
+The override must define the `content` block, which the theme's `base.html` calls; without it the build fails.
+
+```html
+{{define "content"}}
+{{range .Pages}}
+<article>
+  <h2><a href="{{.URL}}">{{.Title}}</a>{{with .Link}} <a class="external-link" href="{{.}}" target="_blank" rel="noopener noreferrer" aria-label="Open the linked page in a new tab">↗</a>{{end}}</h2>
+  {{if .Date}}<p class="meta">{{.Date}}</p>{{end}}
+  {{.Content}}
+</article>
+{{end}}
+{{if .Site.Indexes}}<nav><a href="/archives/">Archives</a></nav>{{end}}
+{{end}}
+```
+
+Here the title goes to the post's permalink and the separate ↗ marker opens the external page; to make the title itself go to the external page, use `{{with .Link}}{{.}}{{else}}{{.URL}}{{end}}` as its `href`.
+The template needs no pagination links because a positive `home.limit` turns homepage pagination off.
 
 ## Validation and safe output
 
@@ -244,8 +400,8 @@ personal site content and account configuration in your own site repository.
 
 ## Releases and validation
 
-See [release procedure](docs/RELEASE.md), [v0.3.2 notes](docs/RELEASE_NOTES_v0.3.2.md)
-and [v0.3.1 notes](docs/RELEASE_NOTES_v0.3.1.md).
+See [release procedure](docs/RELEASE.md), [v0.4.0 notes](docs/RELEASE_NOTES_v0.4.0.md),
+[v0.3.2 notes](docs/RELEASE_NOTES_v0.3.2.md) and [v0.3.1 notes](docs/RELEASE_NOTES_v0.3.1.md).
 Prebuilt archives include MIT and dependency licenses, exact version/source
 provenance and SHA-256 checksums. Source archives include vendored dependencies
 for offline builds. Six-target compilation does not imply native execution on

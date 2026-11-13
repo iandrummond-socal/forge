@@ -60,10 +60,23 @@ platform validation, public module identity, signing and publication remain sepa
 - Starter and bundled sample themes kept identical by a test
 - Existing sites and custom `templates/partials/header.html` overrides are unchanged until the owner copies the new partial
 
+## Implemented in 0.4.0
+
+- Optional `link` front matter for link posts, exposed as `.Link`; validated as an absolute http(s) URL and never changes routing
+- Editorial `date` accepts a timestamp with an explicit offset; `.Date` stays YYYY-MM-DD in the author's own offset
+- Content ordered by instant, newest first, then URL; date-only sites keep their previous order
+- `.Content` on list items renders a post's sanitised body in list templates
+- Optional `[home]` table: one collection and the newest N items on the homepage, never paginated when capped
+- Optional `[feed]` table: full post bodies with permalink guids, external links for link posts with a ★ permalink footer, and a feed item limit
+- Root-relative URLs in feed bodies made absolute against `base_url`
+- Default theme shows a ↗ marker after the title of a link post
+- Every capability is opt-in; the v0.2 compatibility fixture builds byte-identical output to v0.3.2
+
 ## Important limitations
 
 - This is a prototype, not yet a Hugo replacement. CommonMark is parsed with deliberate safe-output restrictions; GFM extensions such as tables are not enabled.
-- TOML syntax is supported, but the application schema still limits available metadata fields. Editorial date remains date-only; scheduling uses explicit publish_date/expiry_date with UTC date-only bounds or offset timestamps.
+- TOML syntax is supported, but the application schema still limits available metadata fields. Editorial date may be a date or an offset timestamp; a date-only value counts as midnight UTC, so mixing the two styles can order items against their visible dates. Scheduling uses explicit publish_date/expiry_date with UTC date-only bounds or offset timestamps.
+- Full-content feeds absolutise only root-relative URLs; document-relative links in post bodies are left as written. The feed is RSS 2.0 only; there is no Atom feed.
 - No custom content-type schemas, true multi-level theme inheritance, or shortcodes. Collections are single-slug membership; taxonomy/group directories are not paginated.
 - `serve` rebuilds the entire site on detected edits; no incremental dependency graph yet. Live reload requires EventSource-capable browsers.
 - The `deploy` command shells out to `npx --yes wrangler deploy`; requires Node/npm and Cloudflare authentication.

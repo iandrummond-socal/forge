@@ -7,7 +7,7 @@ Use a clean source commit, Python 3.11+, and cached Go modules. Run
 Package with the second toolchain:
 
 ```sh
-python3 scripts/package_release.py --version v0.3.2 \
+python3 scripts/package_release.py --version v0.4.0 \
   --validation release/validation/minimum.json release/validation/current.json
 ```
 

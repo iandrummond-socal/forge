@@ -20,7 +20,7 @@ import (
 )
 
 // Version and Commit may be set by the local release packager using -ldflags.
-var Version = "v0.3.2"
+var Version = "v0.4.0"
 var Commit = ""
 
 //go:embed starter/**
