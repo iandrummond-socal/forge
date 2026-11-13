@@ -48,6 +48,14 @@ type encoded struct {
 	Value string `xml:",cdata"`
 }
 
+// xmlChar maps a rune XML 1.0 forbids to U+FFFD; CDATA is written raw, so one would break the feed.
+// strings.Map already turns invalid UTF-8 into U+FFFD.
+func xmlChar(r rune) rune {
+	if r == '\t' || r == '\n' || r == '\r' || (r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF) {
+		return r
+	}
+	return '�'
+}
 func writeXML(path string, v any) error {
 	b, err := xml.MarshalIndent(v, "", "  ")
 	if err != nil {
@@ -102,6 +110,9 @@ func writeRSS(out string, cfg site.Config, pages []site.Page) error {
 			if entry.Content != nil {
 				entry.Content.Value += `<p><a href="` + html.EscapeString(permalink) + `" title="Permanent link to ‘` + html.EscapeString(p.Title) + `’">★</a></p>`
 			}
+		}
+		if entry.Content != nil {
+			entry.Content.Value = strings.Map(xmlChar, entry.Content.Value)
 		}
 		feed.Channel.Items = append(feed.Channel.Items, entry)
 	}

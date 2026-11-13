@@ -148,6 +148,11 @@ func ParsePage(name string, data []byte) (Page, error) {
 		if stamp.IsZero() {
 			return p, fmt.Errorf("%s: date: zero timestamp is not a valid date", name)
 		}
+		// Pin the author's offset in an unnamed zone: an offset that matches
+		// the building machine's zone would otherwise come back as time.Local
+		// and print that zone's name, so output would differ by machine.
+		_, off := stamp.Zone()
+		stamp = stamp.In(time.FixedZone("", off))
 		p.Date, p.Timestamp, p.HasTime = stamp.Format("2006-01-02"), stamp, true
 	}
 	if p.Title == "" {

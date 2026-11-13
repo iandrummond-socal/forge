@@ -235,6 +235,28 @@ func TestFeedCDATATerminatorStaysWellFormed(t *testing.T) {
 	}
 }
 
+// XML 1.0 forbids most C0 controls; CDATA is written raw, so they must become U+FFFD.
+func TestFeedIllegalCharsStayWellFormed(t *testing.T) {
+	out := t.TempDir()
+	cfg := site.Config{Title: "Site", BaseURL: "https://example.com", FeedFullContent: true, FeedExternalLinks: true}
+	page := site.Page{Title: "T\x01x", URL: "/posts/t/", Link: "https://example.org/t", ContentHTML: "<p>a\x01b\x0cc\td\n</p>"}
+	if err := writeRSS(out, cfg, []site.Page{page}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(out, "rss.xml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc feedDoc
+	if err := xml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("not well-formed: %v\n%q", err, data)
+	}
+	want := "<p>a�b�c\td\n</p>" + `<p><a href="https://example.com/posts/t/" title="Permanent link to ‘T` + "�" + `x’">★</a></p>`
+	if len(doc.Channel.Items) != 1 || doc.Channel.Items[0].Content == nil || doc.Channel.Items[0].Content.Value != want {
+		t.Fatalf("content:\n got %+v\nwant %q", doc.Channel.Items, want)
+	}
+}
+
 // Contract drift: the legacy fixture must build exactly the v0.3.2 output.
 func TestLegacyFixtureMatchesGoldens(t *testing.T) {
 	source, golden := filepath.Join("..", "..", "testdata", "v0.2-site"), filepath.Join("..", "..", "testdata", "golden", "v0.2-site")

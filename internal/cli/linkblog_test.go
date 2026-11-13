@@ -67,6 +67,7 @@ slug = 'charlie'
 Charlie has **charlie body** text.`)
 	write("content/posts/delta.md", `+++
 title = 'Delta'
+date = 2026-11-05T00:00:00Z
 slug = 'delta'
 draft = true
 +++
@@ -167,12 +168,28 @@ Unpublished body.`)
 	}
 	sweep(false)
 
-	// With -drafts the draft is published at its permalink.
+	// With -drafts the draft is published at its permalink and, as the newest
+	// post, takes the first home slot: home is delta then bravo, and alpha
+	// rolls off the home page but keeps its permalink.
 	if err := Run([]string{"build", "-root", root, "-as-of", asOf, "-drafts"}, &out, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(read(filepath.Join("posts", "delta", "index.html")), "Delta") {
 		t.Error("-drafts build lacks delta's page")
+	}
+	draftHome := read("index.html")
+	if n := strings.Count(draftHome, "<article>"); n != 2 {
+		t.Fatalf("-drafts home has %d articles, want 2: %s", n, draftHome)
+	}
+	d, b2 := strings.Index(draftHome, `href="/posts/delta/"`), strings.Index(draftHome, `href="/posts/bravo/"`)
+	if d < 0 || b2 < 0 || d > b2 {
+		t.Fatalf("-drafts home order must be delta then bravo: %s", draftHome)
+	}
+	if strings.Contains(draftHome, "/posts/alpha/") || strings.Contains(draftHome, "Alpha") {
+		t.Errorf("alpha should have rolled off the -drafts home page: %s", draftHome)
+	}
+	if !strings.Contains(read(filepath.Join("posts", "alpha", "index.html")), "<strong>alpha body</strong>") {
+		t.Error("-drafts build lacks alpha's permalink")
 	}
 	sweep(true)
 }

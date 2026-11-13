@@ -90,6 +90,55 @@ func TestTimestampedDate(t *testing.T) {
 	}
 }
 
+// A timestamp whose offset matches the building machine's zone must not pick
+// up that zone's name: the same site builds the same bytes on every machine.
+// Not parallel: it swaps time.Local.
+func TestTimestampNoMachineZone(t *testing.T) {
+	saved := time.Local
+	t.Cleanup(func() { time.Local = saved })
+	cases := []struct {
+		local         *time.Location
+		value, date   string
+		instant, want string
+	}{
+		{time.FixedZone("PST", -8*3600), "2026-11-03T15:00:00-08:00", "2026-11-03",
+			"2026-11-03T23:00:00Z", "Tue, 03 Nov 2026 15:00:00 -0800"},
+		{time.FixedZone("IST", 5*3600+1800), "2026-11-03T15:00:00+05:30", "2026-11-03",
+			"2026-11-03T09:30:00Z", "Tue, 03 Nov 2026 15:00:00 +0530"},
+	}
+	for _, c := range cases {
+		for _, head := range []string{"date = " + c.value, "date = '" + c.value + "'"} {
+			time.Local = time.UTC
+			ref, err := parseHead(t, "content/posts/a.md", head)
+			if err != nil {
+				t.Fatalf("%s (UTC): %v", head, err)
+			}
+			time.Local = c.local
+			p, err := parseHead(t, "content/posts/a.md", head)
+			if err != nil {
+				t.Fatalf("%s: %v", head, err)
+			}
+			ts := p.Timestamp
+			if ts.Location() == time.Local {
+				t.Errorf("%s: Timestamp is in time.Local", head)
+			}
+			if ts.String() != ref.Timestamp.String() || ts.Format("MST") != ref.Timestamp.Format("MST") {
+				t.Errorf("%s: machine zone leaked: %q / %q, under UTC %q / %q",
+					head, ts.String(), ts.Format("MST"), ref.Timestamp.String(), ref.Timestamp.Format("MST"))
+			}
+			if want, _ := time.Parse(time.RFC3339, c.instant); !ts.Equal(want) {
+				t.Errorf("%s: instant %v, want %s", head, ts, c.instant)
+			}
+			if p.Date != c.date {
+				t.Errorf("%s: Date %q, want %q", head, p.Date, c.date)
+			}
+			if got := ts.Format(time.RFC1123Z); got != c.want {
+				t.Errorf("%s: RFC1123Z %q, want %q", head, got, c.want)
+			}
+		}
+	}
+}
+
 func readLinkblogSite(t *testing.T, files map[string]string) []string {
 	t.Helper()
 	root := t.TempDir()
