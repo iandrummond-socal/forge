@@ -53,3 +53,38 @@ Verified November 5, 2026:
 
 [Stable release](https://github.com/iandrummond-socal/forge/releases/tag/v0.3.2)
 has the same asset set as v0.3.1.
+
+## v0.4.0
+
+Source commit `666316a9e2c37e6c94ef7f2583aced43b2873df5`, tagged **v0.4.0**.
+The change is opt-in link-blog support: `link` front matter, timestamped dates,
+rendered bodies in lists, and the `[home]` and `[feed]` tables. A site that uses
+none of the new keys builds the same output as v0.3.2.
+
+Verified November 12, 2026:
+
+- [Source CI](https://github.com/iandrummond-socal/forge/actions/runs/43372560824)
+  passed all six jobs on the release commit: Linux AMD64, Windows AMD64 and Intel
+  macOS with Go 1.23.0 and Go 1.27.3.
+- Local native macOS ARM64 validation passed on a clean tree with both Go versions
+  (64 top-level race tests, vet, module verification, legacy compatibility,
+  output/link/XML and rebuild checks, and the link-blog smoke). Six binary targets
+  compiled.
+- The v0.2 compatibility fixture builds byte-identical output to the v0.3.2
+  release binary; the stored v0.3.2 output is compared on every test run.
+- [Native packaged-binary checks](https://github.com/iandrummond-socal/forge/actions/runs/43373307184)
+  passed on Linux AMD64, Windows AMD64 and Intel macOS. The packaged macOS ARM64
+  executable also passed locally. Windows ARM64 remains compile-only.
+- The 12 published assets were downloaded again; they match `SHA256SUMS` and the
+  locally packaged files byte for byte.
+- All 12 release artifacts and 191 unpacked members were scanned with Gitleaks
+  (zero findings) and searched for machine paths and personal identifiers (none;
+  the only path-like match is an example in the vendored TOML library's own help
+  text, also present in earlier releases). Public Git history was scanned with
+  Gitleaks (zero findings). Actions logs were not rescanned for this release.
+- The v0.4.0 tag is a lightweight tag created with the GitHub release, pointing
+  directly at the source commit; v0.3.1 and v0.3.2 are annotated tags. Commits use
+  the maintainer's GitHub noreply identity.
+
+[Stable release](https://github.com/iandrummond-socal/forge/releases/tag/v0.4.0)
+has the same asset set as v0.3.2.
