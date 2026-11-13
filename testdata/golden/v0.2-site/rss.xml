@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>My Forge Site</title>
+    <link>https://example.com/</link>
+    <description>A site built with Forge</description>
+    <item>
+      <title>Hello World</title>
+      <link>https://example.com/posts/hello-world/</link>
+      <description>The first post on my Forge site</description>
+      <pubDate>Wed, 04 Nov 2026 00:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,2 @@
+testdata/golden/** -text
+testdata/v0.2-site/** -text
